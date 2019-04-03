@@ -1,0 +1,170 @@
+## Preprocess your data using XCMS3 and export data files for feature-based molecular networking through GNPS
+
+To follow this example tutorial, download the folder named <tt>'peak/AMG_Plant_subset'</tt> from: <br>
+https://massive.ucsd.edu/ProteoSAFe/dataset.jsp?task=de2d18fd91804785bce8c225cc94a444
+
+load libraries and GNPS export source function
+
+```{r}
+source('customFunctions.R')
+library(xcms)
+```
+
+Use socket based parallel processing on Windows systems
+
+```{r}
+if (.Platform$OS.type == "unix") {
+  register(bpstart(MulticoreParam(4)))
+} else {
+  register(bpstart(SnowParam(4)))
+} 
+```
+
+### Load data
+
+load all .mzXML files and define sample grouping
+
+```{r}
+mzMLfiles <- paste0('AMG_Plant_subset/',list.files(path = 'AMG_Plant_subset/', pattern = ".mzXML$", recursive = TRUE))
+s_groups <- rep("sample", length(mzMLfiles))
+pheno <- data.frame(sample_name = sub(basename(mzMLfiles), pattern = ".mzML",replacement = "", fixed = TRUE),
+                    sample_group = s_groups, stringsAsFactors = FALSE)
+```
+
+```{r}
+head(pheno)
+```
+
+read all raw data, including MS2 level
+
+```{r}
+rawData <- readMSData(mzMLfiles, centroided. = TRUE, pdata = new("NAnnotatedDataFrame", pheno), mode = "onDisk")
+```
+
+create a base peak chromatogram (BPC) of your data for visual inspection
+
+```{r}
+bpis <- chromatogram(rawData, aggregationFun = "max")
+plot(bpis)
+```
+
+### Peak picking
+
+define settings for the centWave peak detection.
+
+```{r}
+cwp <- CentWaveParam(snthresh = 3, noise = 5000, peakwidth = c(5,30), ppm = 10)
+```
+
+perform peak picking
+
+```{r}
+processedData <- findChromPeaks(rawData, param = cwp) 
+```
+
+get an overview of the detected peaks, using a heatmap
+
+```{r}
+plotChromPeakImage(processedData, binSize = 10) 
+```
+
+### Retention time alignment
+
+do a obiwarp alignment using the default settings
+
+```{r}
+processedData <- adjustRtime(processedData, param = ObiwarpParam())
+```
+
+plot the difference of adjusted to raw retention time
+
+```{r}
+plotAdjustedRtime(processedData)
+```
+
+### Peak grouping
+
+define the PeakDensityParam
+
+```{r}
+pdp <- PeakDensityParam(sampleGroups = processedData$sample_group, minFraction = 0.10)
+processedData <- groupChromPeaks(processedData, param = pdp) 
+```
+
+### Gap filling
+
+fill in missing peaks
+
+```{r}
+processed_Data <- fillChromPeaks(processedData)
+```
+
+### Export data
+
+#### export MS1 and MS2 features
+
+export .mgf file <br>
+all features, independent of whether they contain MS2 data or MS1 only will be saved to <tt>'ms2spectra_all.mgf'</tt>. This file can for example be used to do <i>in silico</i> structure prediction through [SIRIUS+CSI:FingerID](https://bio.informatik.uni-jena.de/software/sirius/):
+
+```{r}
+## export the individual spectra into a .mgf file
+filteredMs2Spectra <- featureSpectra(processedData, return.type = "Spectra")
+filteredMs2Spectra@listData <- lapply(filteredMs2Spectra, clean, all = TRUE)
+filteredMs2Spectra <- formatSpectraForGNPS(filteredMs2Spectra)
+```
+
+```{r}
+writeMgfData(filteredMs2Spectra, "ms2spectra_all.mgf")
+```
+
+export peak area quantification table <br>
+a peak area quantification table contains features and respective per sample peak areas in columns. The file is saved to <tt>'xcms_all.txt'</tt>.
+
+```{r}
+## get data
+featuresDef <- featureDefinitions(processedData)
+featuresIntensities <- featureValues(processedData, value = "into")
+
+## generate data table
+dataTable <- merge(featuresDef, featuresIntensities, by=0, all=TRUE)
+dataTable <- dataTable[,!(names(dataTable) %in% c("peakidx"))]
+```
+
+```{r}
+head(dataTable)
+```
+
+```{r}
+write.table(dataTable, "xcms_all.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+```
+
+#### export MS2 features only
+
+export .mgf file <br>
+This file can be submitted to GNPS [feature-based molecular networking](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking/):
+
+```{r}
+## Select for each feature the Spectrum2 with the largest TIC.
+filteredMs2spectra_maxTic <- endoapply(split(filteredMs2Spectra, mcols(filteredMs2Spectra)$feature_id), function(z) z[which.max(lapply(intensity(z), sum))])
+filteredMs2spectra_maxTic <- unlist(filteredMs2spectra_maxTic)
+```
+
+```{r}
+writeMgfData(filteredMs2spectra_maxTic, "ms2spectra_maxTic.mgf")
+```
+
+export peak area quantification table <br>
+the peak area quantification table contains features and respective per sample peak areas in columns. The file is saved to <tt>'xcms_onlyMS2.txt'</tt>. This file can be submitted to GNPS [feature-based molecular networking](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking/):
+
+```{r}
+## filter data table to contain only peaks with MSMS DF[ , !(names(DF) %in% drops)]
+filteredDataTable <- dataTable[which(dataTable$Row.names %in% filteredMs2Spectra@elementMetadata$feature_id),]
+```
+
+```{r}
+head(filteredDataTable)
+```
+
+```{r}
+write.table(filteredDataTable, "xcms_onlyMS2.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+```
