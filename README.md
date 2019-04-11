@@ -9,14 +9,14 @@ FBMN workflow in GNPS using a subset of the American Gut Project.
 
 ### Installation of XCMS-GNPS workflow for FBMN
 
-Install the latest version of XCMS3 from Bioconductor (version >= 3.4) in R
+Install the latest version of XCMS3 (version >= 3.4) from Bioconductor in R
 with:
 
 ```
 install("BiocManager")
 BiocManager::install("xcms")
 ```
-See also [xcms Bioconductor package] (https://www.bioconductor.org/packages/release/bioc/html/xcms.html).
+See also [xcms Bioconductor package](https://www.bioconductor.org/packages/release/bioc/html/xcms.html).
 
 See or clone the Github repository for utility functions specific to this workflow.
 [https://github.com/jorainer/xcms-gnps-tools](https://github.com/jorainer/xcms-gnps-tools)
@@ -39,5 +39,6 @@ Analytical Chemistry, 78, 779–787 (2006).
 The main documentation for Feature-Based Molecular Networking with GNPS [can be accessed here:](featurebasedmolecularnetworking.md)
 
 ### Contributions
-The XCMS-GNPS integration was developed by Johannes Rainer and Michael Wittig, in coordination with Louis Felix Nothias and Daniel Petras.
+
+The XCMS-GNPS integration was developed by Johannes Rainer and Michael Witting, in coordination with Louis Felix Nothias and Daniel Petras.
 This tutorials were prepared by Madeleine Ernst and Ricardo da Silva.

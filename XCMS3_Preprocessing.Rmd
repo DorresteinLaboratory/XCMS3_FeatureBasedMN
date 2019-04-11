@@ -16,7 +16,13 @@ library(xcms)
 source("https://raw.githubusercontent.com/jorainer/xcms-gnps-tools/master/customFunctions.R")
 ```
 
-Use socket based parallel processing on Windows systems
+Use socket based parallel processing on Windows systems. The number (`4`)
+defines the number of parallel tasks. Adapt this setting to the number of CPUs
+available on your system. Also note that it is usually better to not use all
+CPUs of a system as a) during the analysis the MS data has to be imported from
+the original mzML/mzXML/CDF files and it will thus be limited by the I/O of the
+hard disks and b) the computer needs to have enough memory to load the complete
+MS data of as many raw data files than there are parallel jobs. 
 
 ```{r}
 if (.Platform$OS.type == "unix") {
@@ -147,11 +153,13 @@ function `formatSpectraForGNPS`
 writeMgfData(filteredMs2Spectra, "ms2spectra_all.mgf")
 ```
 
-Export peak area quantification table. To this end we first extract the *feature definitions* (i.e. the m/z and retention time ranges and other metadata for all
+Export peak area quantification table. To this end we first extract the *feature
+definitions* (i.e. the m/z and retention time ranges and other metadata for all
 defined features in the data set) and then the integrated peak areas (with the
-`featureValues` function). This peak area quantification table contains
-features and respective per sample peak areas in columns. The combined data is
-then saved to the file *xcms_all.txt*.
+`featureValues` function). This peak area quantification table contains features
+and respective per sample peak areas in columns. The combined data is then saved
+to the file *xcms_all.txt*. Note that it is now also possible to use the entire
+feature table in the FBMN workflow.
 
 ```{r}
 ## get data
