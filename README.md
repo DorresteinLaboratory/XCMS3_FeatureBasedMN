@@ -1,8 +1,8 @@
 ## Introduction
 
-The Feature-Based Molecular Networking (FBMN) is a computational method that bridges popular mass spectrometry data processing tools for LC-MS/MS and molecular networking analysis on [GNPS](http://gnps.ucsd.edu). The tools supported are: [MZmine2](featurebasedmolecularnetworking-with-mzmine2.md), [OpenMS](featurebasedmolecularnetworking-with-openms.md), [MS-DIAL](featurebasedmolecularnetworking-with-ms-dial.md), [MetaboScape](featurebasedmolecularnetworking-with-metaboscape.md), and [XCMS](featurebasedmolecularnetworking-with-xcms3.md).
+The Feature-Based Molecular Networking (FBMN) is a computational method that bridges popular mass spectrometry data processing tools for LC-MS/MS and molecular networking analysis on [GNPS](http://gnps.ucsd.edu). The tools supported are: MZmine2, OpenMS, MS-DIAL, MetaboScape, and XCMS.
 
-The main documentation for Feature-Based Molecular Networking with XCMS [can be accessed here:](featurebasedmolecularnetworking-with-xcms.md)
+The main documentation for Feature-Based Molecular Networking with XCMS [can be accessed here:](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking-with-xcms3/)
 
 This repository contains example script in python and R showing how `xcms` version >= 3 (XCMS3) can used for the
 FBMN workflow in GNPS using a subset of the American Gut Project.
@@ -36,7 +36,7 @@ Analytical Chemistry, 78, 779–787 (2006).
 
 ### Running the Feature Based Molecular Networking on GNPS
 
-The main documentation for Feature-Based Molecular Networking with GNPS [can be accessed here:](featurebasedmolecularnetworking.md)
+The main documentation for Feature-Based Molecular Networking with GNPS [can be accessed here:](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking)
 
 ### Contributions
 
