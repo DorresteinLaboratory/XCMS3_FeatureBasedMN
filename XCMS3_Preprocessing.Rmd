@@ -7,7 +7,7 @@ Note that the settings for `xcms` used in this tutorial were not optimized,
 specifically the alignment based on the default *obiwarp* parameters might
 perform a little to strong retention time adjustment.
 For more information on optimization of the parameters see the [xcms vignette](https://bioconductor.org/packages/release/bioc/vignettes/xcms/inst/doc/xcms.html)
-or the [xcms preprocessing](https://jorainer.github.io/metabolomics2018/xcms-preprocessing.html) workshop.
+or the [preprocessing-untargeted-metabolomics](https://github.com/Bioconductor/CSAMA/tree/2019/lab/4-thursday/lab-05-metabolomics) workshop.
 
 Load required libraries and utility functions for GNPS export.
 
@@ -22,7 +22,7 @@ available on your system. Also note that it is usually better to not use all
 CPUs of a system as a) during the analysis the MS data has to be imported from
 the original mzML/mzXML/CDF files and it will thus be limited by the I/O of the
 hard disks and b) the computer needs to have enough memory to load the complete
-MS data of as many raw data files than there are parallel jobs. 
+MS data of as many raw data files than there are parallel jobs.
 
 ```{r}
 if (.Platform$OS.type == "unix") {
@@ -49,7 +49,7 @@ pheno <- data.frame(sample_name = sub(basename(mzMLfiles), pattern = ".mzML",rep
 head(pheno)
 ```
 
-Read all raw data, including MS2 level
+Read all raw data, including MS2 level.
 
 ```{r}
 rawData <- readMSData(mzMLfiles, centroided. = TRUE, mode = "onDisk",
