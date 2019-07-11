@@ -36,7 +36,7 @@ Analytical Chemistry, 78, 779–787 (2006).
 
 ### Running the Feature Based Molecular Networking on GNPS
 
-The main documentation for Feature-Based Molecular Networking with GNPS [can be accessed here:](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking)
+The main documentation for Feature-Based Molecular Networking with GNPS [can be accessed here:](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking/)
 
 ### Contributions
 
