@@ -146,8 +146,7 @@ filteredMs2Spectra <- formatSpectraForGNPS(filteredMs2Spectra)
 
 The extracted MS2 spectra are saved as *ms2spectra_all.mgf* file. This file can
 for example be used to do *in silico* structure prediction through
-[SIRIUS+CSI:FingerID](https://bio.informatik.uni-jena.de/software/sirius/). The
-function `formatSpectraForGNPS`
+[SIRIUS+CSI:FingerID](https://bio.informatik.uni-jena.de/software/sirius/).
 
 ```{r}
 writeMgfData(filteredMs2Spectra, "ms2spectra_all.mgf")
