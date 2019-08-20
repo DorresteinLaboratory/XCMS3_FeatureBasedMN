@@ -5,7 +5,7 @@ The Feature-Based Molecular Networking (FBMN) workflow is a computational method
 The main documentation for Feature-Based Molecular Networking with XCMS can be accessed [here](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking-with-xcms3/).
 
 This repository contains example scripts in Python and R showing how `XCMS` version >= 3 (XCMS3) can be used for the
-FBMN workflow in GNPS using a subset of samples of the American Gut Project ([MSV000082678](https://massive.ucsd.edu/ProteoSAFe/dataset.jsp?task=de2d18fd91804785bce8c225cc94a444)) and bacterial samples ([MSV000079204](https://massive.ucsd.edu/ProteoSAFe/dataset.jsp?task=d74ca92d9dec4e2883f28506c670e3ca)).
+FBMN workflow in GNPS using a subset of samples of the American Gut Project ([MSV000082678](https://massive.ucsd.edu/ProteoSAFe/dataset.jsp?task=de2d18fd91804785bce8c225cc94a444)) and soil bacteria ([MSV000079204](https://massive.ucsd.edu/ProteoSAFe/dataset.jsp?task=d74ca92d9dec4e2883f28506c670e3ca)).
 
 ### Installation of the XCMS-GNPS workflow for FBMN
 
