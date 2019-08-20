@@ -16,7 +16,7 @@ with:
 install("BiocManager")
 BiocManager::install("xcms")
 ```
-Also refer to the [xcms Bioconductor package](https://www.bioconductor.org/packages/release/bioc/html/xcms.html).
+For more information, also refer to the [xcms Bioconductor package](https://www.bioconductor.org/packages/release/bioc/html/xcms.html).
 
 For utility functions specific to this workflow refer to the Github repository:
 [https://github.com/jorainer/xcms-gnps-tools](https://github.com/jorainer/xcms-gnps-tools)
