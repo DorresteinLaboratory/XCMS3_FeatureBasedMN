@@ -11,7 +11,7 @@ or the [preprocessing-untargeted-metabolomics](https://github.com/Bioconductor/C
 
 Load required libraries and utility functions for GNPS export.
 
-```{r}
+```{r, message = FALSE}
 library(xcms)
 source("https://raw.githubusercontent.com/jorainer/xcms-gnps-tools/master/customFunctions.R")
 ```
@@ -61,7 +61,7 @@ rawData <- readMSData(mzXMLfiles, centroided. = TRUE, mode = "onDisk",
 
 Create a base peak chromatogram (BPC) of your data for visual inspection.
 
-```{r}
+```{r, fig.width = 12, fig.height - 6, fig.cap = "Base peak chromatogram"}
 bpis <- chromatogram(rawData, aggregationFun = "max")
 plot(bpis)
 ```
@@ -75,10 +75,10 @@ cwp <- CentWaveParam(snthresh = 3, noise = 5000,
                      peakwidth = c(5, 30), ppm = 10)
 ```
 
-Perform peak picking.
+Perform the chromatographic peak detection.
 
-```{r}
-processedData <- findChromPeaks(rawData, param = cwp) 
+```{r, message = FALSE, warning = FALSE}
+processedData <- findChromPeaks(rawData, param = cwp)
 ```
 
 Get an overview of the detected peaks, using a heatmap which represents the
@@ -100,7 +100,7 @@ seconds).
 Define the parameters for the *peak density*-based peak grouping (correspondence
 analysis).
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 pdp <- PeakDensityParam(sampleGroups = processedData$sample_group,
                         minFraction = 0.10)
 processedData <- groupChromPeaks(processedData, param = pdp) 
@@ -114,7 +114,7 @@ all signal in the respective m/z - retention time range. Below we first define
 the median width of identified chromatographic peaks in retention time dimension
 and use this as parameter `fixedRt` for the `fillChromPeaks`.
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 medWidth <- median(chromPeaks(processedData)[, "rtmax"] -
                    chromPeaks(processedData)[, "rtmin"])
 processed_Data <- fillChromPeaks(processedData,
@@ -129,7 +129,7 @@ Below we use the `featureSpectra` function to extract all MS2 spectra with their
 precursor m/z being within the m/z range of a feature/peak and their retention
 time within the rt range of the same feature/peak. Zero-intensity
 values are removed from each spectrum with the `clean` function, and
-subsequently processed into the expected format using the `formatSpectraFroGNPS`
+subsequently processed into the expected format using the `formatSpectraForGNPS`
 function.
 
 ```{r}
@@ -186,18 +186,25 @@ filteredMs2Spectra
 ```
 
 We next select a single MS2 spectrum for each feature and export this reduced
-set also as an .mgf file. This file can be submitted to GNPS [feature-based
-molecular
-networking](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking/). As
-*representative* MS2 spectrum for each feature we select the spectrum with the
-largest total signal.
+set also as an .mgf file. We use the `combineSpectra` function on the list of
+spectra and specify with `fcol = "feature_id"` how the spectra are grouped
+(i.e. all spectra with the same feature id are processed together). On the set
+of spectra of the same feature we apply the `maxTic` function that simply
+returns the spectrum with the largest sum of intensities. We thus select with
+the code below the spectrum with the largest total signal as the
+*representative* MS2 spectrum for each feature.
+
 
 ```{r}
 ## Select for each feature the Spectrum2 with the largest TIC.
 filteredMs2Spectra_maxTic <- combineSpectra(filteredMs2Spectra,
                                             fcol = "feature_id",
-                                            fun = maxTic)
+                                            method = maxTic)
 ```
+
+Next we export the data to a file which can then be submitted to GNPS [feature-based
+molecular
+networking](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking/).
 
 ```{r}
 writeMgfData(filteredMs2Spectra_maxTic, "ms2spectra_maxTic.mgf")
@@ -220,4 +227,58 @@ head(filteredDataTable)
 
 ```{r}
 write.table(filteredDataTable, "xcms_onlyMS2.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+```
+
+#### Export MS2 consensus spectra
+
+Alternatively, instead of selecting the spectrum with the largest total signal
+as representative MS2 spectrum for each feature, we can create a *consensus MS2
+spectrum*. A consensus MS2 spectrum can for example be created by combining all
+MS2 spectra for a feature into a single spectrum that contains peaks present in
+the majority of spectra. Note however that this feature is experimental at
+present.
+
+To this end we can use the `consensusSpectrum` function in combination with the
+`combineSpectra` function. The parameter `minProp` defines the mimimal
+proportion of spectra in which a peak has to be present in order for it to be
+added to the consensus spectrum (0.8 -> 80% of spectra). The parameters `mzd`
+and `ppm` allow to define how to group peaks between spectra with `mzd` being a
+fixed, constant value and all peaks between spectra with a difference in their
+m/z < `mzd` are combined into the final mass peak in the consensus
+spectrum. Finally, the parameter `ppm` allows to perform an m/z dependent
+grouping of mass peaks, i.e. mass peaks with a difference in their m/z smaller
+than `ppm` are combined.
+
+For more details see the documentation of the
+[consensusSpectrum](https://rdrr.io/bioc/MSnbase/man/consensusSpectrum.html)
+function in the MSnbase R package.
+
+```{r, message = FALSE, warning = FALSE}
+filteredMs2Spectra_consensus <- combineSpectra(
+    filteredMs2Spectra, fcol = "feature_id", method = consensusSpectrum,
+    mzd = 0, minProp = 0.8, ppm = 10)
+
+writeMgfData(filteredMs2Spectra_consensus, "ms2spectra_consensus_bacterial.mgf")
+```
+
+Analogously we subset the peak area quantification table to features for which
+we have an MS2 consensus spectrum and export this to the *xcms_consensusMS2.txt*
+file. This file can be submitted to GNPS [feature-based molecular
+networking](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking/):
+
+```{r}
+consensusDataTable <- dataTable[which(dataTable$Row.names %in%
+                                      filteredMs2Spectra_consensus@elementMetadata$feature_id),]
+head(consensusDataTable)
+```
+
+```{r}
+write.table(consensusDataTable, "xcms_consensusMS2_bacterial.txt",
+            sep = "\t", quote = FALSE, row.names = FALSE)
+```
+
+### Session information
+
+```{r}
+sessionInfo()
 ```
