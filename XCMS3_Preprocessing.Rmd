@@ -1,3 +1,17 @@
+## Install required packages
+
+Note: This script is optimized for the latest R version (>3.6). Be sure to get the most recent version of R before running.  Note: You don't have to run this chunk if the packages are already installed.
+
+```{r, eval = FALSE, message = FALSE}
+if (!requireNamespace("BiocManager"))
+    install.packages("BiocManager")
+BiocManager::install("rgl")
+BiocManager::install("xcms")
+BiocManager::install("CAMERA")
+BiocManager::install("BiocParallel")
+BiocManager::install("MSnbase")
+```
+
 ## Preprocess your data using XCMS3 and export data files for feature-based molecular networking through GNPS
 
 To follow this example tutorial, download the folder named
@@ -180,6 +194,102 @@ head(dataTable)
 
 ```{r}
 write.table(dataTable, "xcms_all.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+```
+
+### CAMERA annotation of adducts and isotopes
+
+Note: the CAMERA package supports objects of class xcmsSet, which were the outputs of the _old_ version of xcms.  
+So we have to transform the XCMSnExp in xcmsSet trhough the command 'as(object, "xcmsSet", msLevel = 1L)'.  
+Issue: For now, this command does not support objects of class MS2. A solution can be to perform a second preprocessing on the MS1 data before performing the CAMERA annotation. 
+
+```{r}
+library(CAMERA)
+```
+
+xcms preprocessing of filtered MS1 data.
+
+```{r}
+rawDataMS1 <- filterMsLevel(rawData, msLevel = 1L)
+xs1 <- findChromPeaks(rawDataMS1, param = cwp)
+ret1 <- adjustRtime(xs1, 
+                    param = ObiwarpParam()
+                    )
+gret1 <- groupChromPeaks(ret1, param = pdp)
+fill1 <- fillChromPeaks(gret1, param = FillChromPeaksParam(fixedRt = medWidth))
+```
+
+Transform the XCMSnExp in xcmsSet object to support CAMERA annotation.
+
+```{r}
+xset <- as(fill1, "xcmsSet")
+```
+
+Create a xsAnnotate object.
+
+```{r}
+xsa <- xsAnnotate(xset)
+```
+
+Grouping of co-eluted peaks based on rt.
+
+```{r}
+xsaF <- groupFWHM(
+                  xsa,
+                  sigma = 6,
+                  perfwhm = 1
+                  )
+```                  
+
+Check grouping.
+
+```{r}
+xsaC <- groupCorr(
+                  xsaF,
+                  cor_eic_th = 0.6,
+                  pval = 0.05,
+                  graphMethod = "hcs",
+                  calcCiS = TRUE,
+                  calcIso = FALSE,
+                  calcCaS=FALSE
+                  )
+```                  
+
+CAMERA annotation of isotopes and adducts
+
+```{r}
+xsaFI <- findIsotopes(
+                      xsaC,
+                      maxcharge = 2,
+                      maxiso = 3,
+                      minfrac = 0.5
+                      )
+xsaFA <- findAdducts(
+                     xsaFI,
+                     polarity="positive", # or "negative"
+                     max_peaks = 100,
+                     multiplier = 3
+                     )
+```
+
+Create a CAMERA annotated peak list.
+
+```{r}
+peaklist <- getPeaklist(xsaFA)
+```
+
+Bind tha CAMERA nnotated peak list with the previously obtained peak aera quantification table.
+
+```{r}
+annotated_dataTable <- cbind(
+                                 dataTable,
+                                 peaklist[,c((ncol(peaklist)-2):ncol(peaklist))]
+                                 )
+```
+
+Export peak area quantification table and CAMERA annotation of adducts and isotopes.  
+
+```{r}
+write.table(annotated_dataTable, "xcms_camera_all.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 ```
 
 #### Export MS2 features only
