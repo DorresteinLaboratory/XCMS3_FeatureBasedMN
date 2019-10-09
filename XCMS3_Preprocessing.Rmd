@@ -103,7 +103,8 @@ plotChromPeakImage(processedData, binSize = 10)
 
 ### Retention time alignment
 
-Do an *obiwarp*-based alignment using the default settings.
+Do an *obiwarp*-based alignment using the default settings (ideally adapt
+settings to the analyzed data set).
 
 ```{r, message = FALSE, warning = FALSE}
 processedData <- adjustRtime(processedData, param = ObiwarpParam())
@@ -208,6 +209,14 @@ object to MS level 1 prior to the conversion.
 ```{r message = FALSE}
 library(CAMERA)
 xset <- as(filterMsLevel(processedData, msLevel = 1L), "xcmsSet")
+```
+
+With the conversion we lost also the sample group assignment which we have to
+manually add.
+
+```{r message = FALSE}
+sampclass(xset) <- s_groups
+
 ```
 
 Create an `xsAnnotate` object and group co-eluted peaks based on their retention
