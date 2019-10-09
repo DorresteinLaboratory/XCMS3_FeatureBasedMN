@@ -1,15 +1,14 @@
 ## Install required packages
 
-Note: This script is optimized for the latest R version (>3.6). Be sure to get the most recent version of R before running.  Note: You don't have to run this chunk if the packages are already installed.
+Note: This script is optimized for the latest R version (>3.6). Be sure to get
+the most recent version of R before running. The code below installs the
+required packages and all needed dependencies. Note: You don't have to run this
+chunk if the packages are already installed.
 
 ```{r, eval = FALSE, message = FALSE}
 if (!requireNamespace("BiocManager"))
     install.packages("BiocManager")
-BiocManager::install("rgl")
-BiocManager::install("xcms")
-BiocManager::install("CAMERA")
-BiocManager::install("BiocParallel")
-BiocManager::install("MSnbase")
+BiocManager::install(c("xcms", "CAMERA"))
 ```
 
 ## Preprocess your data using XCMS3 and export data files for feature-based molecular networking through GNPS
@@ -22,7 +21,7 @@ Note that the settings for `xcms` used in this tutorial were not optimized,
 specifically the alignment based on the default *obiwarp* parameters might
 perform a little to strong retention time adjustment.
 For more information on optimization of the parameters see the [xcms vignette](https://bioconductor.org/packages/release/bioc/vignettes/xcms/inst/doc/xcms.html)
-or the [preprocessing-untargeted-metabolomics](https://github.com/Bioconductor/CSAMA/tree/2019/lab/4-thursday/lab-05-metabolomics) workshop.
+or the [LC-MS data pre-processing with xcms](https://github.com/jorainer/metabolomics2018) workshop.
 
 Load required libraries and utility functions for GNPS export.
 
@@ -66,14 +65,14 @@ pheno <- data.frame(sample_name = sub(basename(mzMLfiles), pattern = ".mzML",rep
 head(pheno)
 ```
 
-Read all raw data, including MS2 level.
+Read all raw data (which includes MS1 and MS2 spectra).
 
 ```{r}
 rawData <- readMSData(mzMLfiles, centroided. = TRUE, mode = "onDisk",
                       pdata = new("NAnnotatedDataFrame", pheno))
 ```
 
-Create a base peak chromatogram (BPC) of your data for visual inspection.
+Create a base peak chromatogram (BPC) for visual inspection.
 
 ```{r, fig.width = 12, fig.height = 6, fig.cap = "Base peak chromatogram."}
 bpis <- chromatogram(rawData, aggregationFun = "max")
@@ -115,6 +114,7 @@ Plot the difference between adjusted and raw retention times.
 ```{r, fig.width = 12, fig.height = 6}
 plotAdjustedRtime(processedData)
 ```
+
 
 ### Peak grouping
 
@@ -198,13 +198,74 @@ write.table(dataTable, "xcms_all.txt", sep = "\t", quote = FALSE, row.names = FA
 
 ### CAMERA annotation of adducts and isotopes
 
-Note: the CAMERA package supports objects of class xcmsSet, which were the outputs of the _old_ version of xcms.  
-So we have to transform the XCMSnExp in xcmsSet trhough the command 'as(object, "xcmsSet", msLevel = 1L)'.  
-Issue: For now, this command does not support objects of class MS2. A solution can be to perform a second preprocessing on the MS1 data before performing the CAMERA annotation. 
+Note: the CAMERA package supports objects of class `xcmsSet`, which were the
+outputs of the *old* version of xcms. The newer `XCMSnExp` object can however be
+converted to an `xcmsSet` object with the `as(object, "xcmsSet")`, which does
+however not support conversion of objects with MS level > 1 data. Thus we use
+the `filterMsLevel` function on the result object to restrict the data in the
+object to MS level 1 prior to the conversion.
+
+```{r message = FALSE}
+library(CAMERA)
+xset <- as(filterMsLevel(processedData, msLevel = 1L), "xcmsSet")
+```
+
+Create an `xsAnnotate` object and group co-eluted peaks based on their retention
+time. For settings see ... or ...
+
+```{r message = FALSE}
+xsa <- xsAnnotate(xset)
+xsaF <- groupFWHM(xsa, sigma = 6, perfwhm = 1)
+```
+
+TODO:
+- check settings, do they ~ fit the data set?
+- if there is a way to evaluate settings or display results please add them.
+- do a "standard" CAMERA analysis (based e.g. on the code below).
+- add some description what each individual step does and eventually some notes
+  on the settings (and some potential problems).
+
+Check grouping.
 
 ```{r}
-library(CAMERA)
+xsaC <- groupCorr(
+                  xsaF,
+                  cor_eic_th = 0.6,
+                  pval = 0.05,
+                  graphMethod = "hcs",
+                  calcCiS = TRUE,
+                  calcIso = FALSE,
+                  calcCaS=FALSE
+                  )
 ```
+
+CAMERA annotation of isotopes and adducts
+
+```{r}
+xsaFI <- findIsotopes(
+                      xsaC,
+                      maxcharge = 2,
+                      maxiso = 3,
+                      minfrac = 0.5
+                      )
+xsaFA <- findAdducts(
+                     xsaFI,
+                     polarity="positive", # or "negative"
+                     max_peaks = 100,
+                     multiplier = 3
+                     )
+```
+
+Create a CAMERA annotated peak list.
+
+```{r}
+peaklist <- getPeaklist(xsaFA)
+```
+
+
+STOP HERE.
+
+### Old stuff
 
 xcms preprocessing of filtered MS1 data.
 
