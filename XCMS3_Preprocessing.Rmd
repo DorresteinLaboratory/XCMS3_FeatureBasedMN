@@ -96,7 +96,7 @@ processedData <- findChromPeaks(rawData, param = cwp)
 
 Get an overview of the detected peaks, using a heatmap which represents the
 number of peaks detected for each file along the retention time range.
-
+1
 ```{r, fig.width = 10, fig.height = 6}
 plotChromPeakImage(processedData, binSize = 10) 
 ```
