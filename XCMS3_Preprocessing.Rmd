@@ -194,7 +194,8 @@ head(dataTable)
 ```
 
 ```{r}
-write.table(dataTable, "xcms_all.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+write.table(dataTable, "xcms_all.txt", sep = "\t", quote = FALSE, 
+            row.names = FALSE)
 ```
 
 ### CAMERA annotation of adducts and isotopes
@@ -216,59 +217,107 @@ manually add.
 
 ```{r message = FALSE}
 sampclass(xset) <- s_groups
-
 ```
 
-Create an `xsAnnotate` object and group co-eluted peaks based on their retention
-time. For settings see ... or ...
-
+Create and `xsAnnotate` object named `xsa` extracting the peak table from the 
+`xcmsSet` object named `xset`:
 ```{r message = FALSE}
-xsa <- xsAnnotate(xset)
-xsaF <- groupFWHM(xsa, sigma = 6, perfwhm = 1)
+xsa <- xsAnnotate(xset, 
+                  polarity = "positive" # or "negative"
+                  )   
 ```
 
-TODO:
-- check settings, do they ~ fit the data set?
-- if there is a way to evaluate settings or display results please add them.
-- do a "standard" CAMERA analysis (based e.g. on the code below).
-- add some description what each individual step does and eventually some notes
-  on the settings (and some potential problems).
+The following worflow can be divided in 2 big steps: (1) feature grouping in 
+pseudospectras; and (2) annotate the ion species.  
 
-Check grouping.
+The first step has the aim of group the peaks occurring from the same 
+metabolite. For that, first of all we are going to group peaks of the 
+`xsAnnotate` object (`xsa`) according to the RT:
+```{r message = FALSE}
+xsaF <- groupFWHM(
+  xsa, 
+  sigma = 6, 
+  perfwhm = 1 # define the window width 
+              # (it depends on RT variation: put a higher value if RT varies)
+  ) 
+```
 
+In this example, this step has generated 283 pseudospectra.  
+
+Then, we are going to verify grouping with peakshape correlation of features 
+clustered in the same pseudospectra group (in order to separate co-eluting 
+metabolites):
 ```{r}
 xsaC <- groupCorr(
                   xsaF,
-                  cor_eic_th = 0.6,
+                  cor_eic_th = 0.6, # if the correlation value between 2 peaks 
+                  # is higher than this threshold, they will stay in the group, 
+                  # otherwise they will be separated
                   pval = 0.05,
                   graphMethod = "hcs",
-                  calcCiS = TRUE,
-                  calcIso = FALSE,
-                  calcCaS=FALSE
+                  calcCiS = TRUE,  # Calculate correlation inside samples
+                  calcCaS = FALSE, # Calculate correlation accross samples
+                  calcIso = FALSE  # Include isotope detection information 
+                                   # for graph clustering
                   )
 ```
+This step has seperated our 283 pseudospectra into 2689.
 
-CAMERA annotation of isotopes and adducts
-
+Now we are going to deal with the second big step of CAMERA workflow: 
+annotation of isotopes and adducts within pseudospectra-groups:
 ```{r}
-xsaFI <- findIsotopes(
+xsaFI <- findIsotopes( # annotate isotopes according to relation 
+                       # between features (C12/C13)
                       xsaC,
-                      maxcharge = 2,
-                      maxiso = 3,
-                      minfrac = 0.5
+                      maxcharge = 2, # max. number of the isotope charge
+                      maxiso = 3,    # max. number of the isotope peaks
+                      minfrac = 0.5,
+                      ppm = 10,
+                      intval="maxo"  
+                    # xcms reports 3 different intensity values for each peak: 
+                    # (1) maxo - maximum peak intensity; 
+                    # (2) into - integrated peak intensity; 
+                    # (3) intb - integrated peak intensity (baseline corrected)
                       )
-xsaFA <- findAdducts(
+xsaFA <- findAdducts( # annotate adducts and fragments
                      xsaFI,
                      polarity="positive", # or "negative"
                      max_peaks = 100,
-                     multiplier = 3
+                     multiplier = 3, # highest number of allowed clusterion
+                     ppm = 10
                      )
 ```
 
-Create a CAMERA annotated peak list.
-
+Create a CAMERA annotated peak list:
 ```{r}
 peaklist <- getPeaklist(xsaFA)
+```
+CAMERA annotations are added in the last columns (n=3) of the data frame.  
+The column `pcgroup` shows the result of the peak aggrupation: features with the 
+same value are supposed to belong to the same metabolite.   
+
+Let's graphically check the CAMERA output. With the function `plotEICs` we can 
+visualize the raw data, and with the function `plotPsSpectrum` we can plot all 
+peaks of a pseudospectrum:
+```{r}
+plotEICs(      # plot the EICs of all peaks from one pseudospectrum
+  xsaFA, 
+  pspec = 120, # specify which pseudospectrum we want to plot
+  maxlabel = 5 # How many m/z labels to print 
+  )
+
+#xsaFA@sample = 1
+#plotPsSpectrum(xsaFA, pspec = 5) # This should print a typical m/z plot, with 
+# labelled annotated peaks (but I cannot plot it since I'm getting different 
+# errors. The first one can be solved previously executing "xsaFA@sample = 1" or 
+# adding the argument "sample = c(1:n), with n = number of samples" in the 
+# function "xsAnnotate")
+```
+
+Some times CAMERA is grouping features of different co-eluting metabolites. 
+It can be detected if features from the same group have different peak shapes:
+```{r}
+plotEICs(xsaFA, maxlabel = 5, pspec = 26)
 ```
 
 
