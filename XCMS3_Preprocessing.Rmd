@@ -303,10 +303,6 @@ same value are supposed to belong to the same metabolite (based on the
 assumption that co-eluting signal with a similar peak shape and correlation
 across samples derive from the same metabolite).
 
-Post-process the table.
-- keep only annotations with an adduct.
-
-
 Let's graphically check the CAMERA output. With the function `plotEICs` we can 
 visualize the raw data, and with the function `plotPsSpectrum` we can plot all 
 peaks of a pseudospectrum:
