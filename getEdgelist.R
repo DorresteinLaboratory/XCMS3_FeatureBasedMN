@@ -15,7 +15,7 @@
 #' features were grouped by `CAMERA` into the same group.
 #' 
 #' @param peaklist `data.frame` as returned by the [getPeaklist()] function
-#'   from `CAMERA` package.
+#'   from `CAMERA` package or an `xsAnnotate` object.
 #'
 #' @return `data.frame` with edge definitions (see description for more
 #'     details).
@@ -25,24 +25,45 @@
 #' @examples
 #' 
 #' res <- getEdgelist(getPeaklist(xsaFA))
-getEdgelist <- function(peaklist){
-  pl <- split(peaklist, peaklist$pcgroup)
-  do.call(rbind, lapply(pl, .process_pcgroup))
+getEdgelist <- function(peaklist) {
+    if (is(peaklist, "xsAnnotate")) {
+        peaklist <- getPeaklist(peaklist)
+        if (!nrow(peaklist))
+            stop("Got an empty peak list.")
+    }
+    pl <- split(peaklist, factor(peaklist$pcgroup,
+                                 levels = unique(peaklist$pcgroup)))
+    res <- do.call(rbind, lapply(pl, .process_pcgroup))
+    rownames(res) <- NULL
+    res
 }
 
+#' Helper function to extract the adduct annotation from a pair of adducts
+#' from the same *pcgroup*.
+#'
+#' @author Mar Garcia-Aloy
+#'
+#' @noRd
 .define_annot <- function(y) {
     if (any(y$adduct == "")) return(NA)
-    mass <- intersect(.extract_mass_adduct(y$adduct[1]),
-                      .extract_mass_adduct(y$adduct[2]))[1]
+    mass_1 <- .extract_mass_adduct(y$adduct[1])
+    mass_2 <- .extract_mass_adduct(y$adduct[2])
+    mass <- intersect(mass_1, mass_2)
     if (length(mass)) {
         def1 <- unlist(strsplit(y$adduct[1], " "))
         def2 <- unlist(strsplit(y$adduct[2], " "))
-        paste0(def1[grep(mass, def1) - 1], " ",
-               def2[grep(mass, def2) - 1], " dm/z=",
+        paste0(def1[grep(mass[1], def1) - 1], " ",
+               def2[grep(mass[1], def2) - 1], " dm/z=",
                round(abs(y$mz[1] - y$mz[2]), 4))
     } else NA
 }
 
+#' Helper function to extract the isotope annotation from a pair of adducts
+#' from the same *pcgroup*.
+#'
+#' @author Mar Garcia-Aloy
+#'
+#' @noRd
 .define_isotop <- function(w) {
   if (any(w$isotopes == "")) return(NA)
   if (unlist(strsplit(w$isotopes[1], '\\]\\[') )[1] == 
@@ -57,6 +78,8 @@ getEdgelist <- function(peaklist){
 #' Simple helper to extract the mass(es) from strings such as
 #' [M+NH4]+ 70.9681 [M+H]+ 87.9886
 #'
+#' @author Johannes Rainer
+#' 
 #' @noRd
 #' 
 #' @examples
@@ -69,16 +92,23 @@ getEdgelist <- function(peaklist){
     spl[seq(2, by = 2, length.out = length(spl)/2)]
 }
 
+#' Helper function to process features from the same *pcgroup*
+#'
+#' @author Mar Garcia-Aloy
+#'
+#' @noRd
 .process_pcgroup <- function(x) {
-    res <- combn(seq_len(nrow(x)), 2, FUN = function(z) {
-        data.frame(ID1 = rownames(x)[z[1]],
-                   ID2 =  rownames(x)[z[2]],
-                   EdgeType = "MS1 annotation",
-                   Score = NA,
-                   Annotation = .define_annot(x[z,]),
-                   Isotope = .define_isotop(x[z,]),
-                   pcgroup = x$pcgroup[1],
+    if (nrow(x) > 1) {
+        res <- combn(seq_len(nrow(x)), 2, FUN = function(z) {
+            data.frame(ID1 = rownames(x)[z[1]],
+                       ID2 =  rownames(x)[z[2]],
+                       EdgeType = "MS1 annotation",
+                       Score = NA,
+                       Annotation = .define_annot(x[z,]),
+                       Isotope = .define_isotop(x[z,]),
+                       pcgroup = x$pcgroup[1],
                    stringsAsFactors = FALSE)
-    }, simplify = FALSE)
-    do.call(rbind, res)
+        }, simplify = FALSE)
+        do.call(rbind, res)
+    } else NULL
 }

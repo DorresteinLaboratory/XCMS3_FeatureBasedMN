@@ -96,7 +96,7 @@ processedData <- findChromPeaks(rawData, param = cwp)
 
 Get an overview of the detected peaks, using a heatmap which represents the
 number of peaks detected for each file along the retention time range.
-1
+
 ```{r, fig.width = 10, fig.height = 6}
 plotChromPeakImage(processedData, binSize = 10) 
 ```
@@ -142,7 +142,6 @@ medWidth <- median(chromPeaks(processedData)[, "rtmax"] -
 ## fill missing peaks
 processed_Data <- fillChromPeaks(
     processedData, param = FillChromPeaksParam(fixedRt = medWidth))
-
 ```
 
 ### Export data
@@ -207,7 +206,7 @@ however not support conversion of objects with MS level > 1 data. Thus we use
 the `filterMsLevel` function on the result object to restrict the data in the
 object to MS level 1 prior to the conversion.
 
-```{r message = FALSE}
+```{r, message = FALSE}
 library(CAMERA)
 xset <- as(filterMsLevel(processedData, msLevel = 1L), "xcmsSet")
 ```
@@ -215,7 +214,7 @@ xset <- as(filterMsLevel(processedData, msLevel = 1L), "xcmsSet")
 With the conversion we lost also the sample group assignment which we have to
 manually add.
 
-```{r message = FALSE}
+```{r, message = FALSE}
 sampclass(xset) <- s_groups
 ```
 
@@ -223,7 +222,7 @@ Create and `xsAnnotate` object named `xsa` extracting the peak table from the
 `xcmsSet` object named `xset`. Parameter `polarity` can be either `"positive"`
 or `"negative"`, depending on the polarity in which the data was acquired.
 
-```{r message = FALSE}
+```{r, message = FALSE}
 xsa <- xsAnnotate(xset, polarity = "positive")
 ```
 
@@ -254,7 +253,7 @@ be adapted to the respective experimental setup (e.g. setting `calcSaS = TRUE`
 if it can be assumed that the same adducts are generated across all samples in
 the data set).
 
-```{r}
+```{r, message = FALSE}
 xsaC <- groupCorr(xsaF, cor_eic_th = 0.6, pval = 0.05, graphMethod = "hcs",
                   calcCiS = TRUE, calcCaS = TRUE, calcIso = FALSE)
 ```
@@ -271,7 +270,7 @@ which might not be available for all peak detection methods). Parameters
 `maxcharge` and `maxiso` allow to specify the maximal number of isotope charge
 and isotope peaks, respectively.
 
-```{r}
+```{r, message = FALSE}
 xsaFI <- findIsotopes(xsaC, maxcharge = 2, maxiso = 3, minfrac = 0.5,
                       ppm = 10, intval = "maxo")
 ```
@@ -281,10 +280,10 @@ grouped chromatographic peaks. Setting the correct polarity with parameter
 `polarity` (either `"positive"` or `"negative"` is key). For potential adducts,
 `CAMERA` calculates by default all possible combinations from the standard ions
 depending on the ionization mode. Alternatively it is possible to limit to a
-predefined set of adducts. Below we use only primary adducts for positive
-polarity.
+predefined set of adducts with the `rules` parameter. Below we use only primary
+adducts for positive polarity.
 
-```{r message = FALSE}
+```{r, message = FALSE}
 file <- system.file('rules/primary_adducts_pos.csv', package = "CAMERA")
 rules <- read.csv(file)
 xsaFA <- findAdducts(xsaFI, polarity = "positive", rules = rules,
@@ -293,7 +292,7 @@ xsaFA <- findAdducts(xsaFI, polarity = "positive", rules = rules,
 
 Create a CAMERA annotated peak list:
 
-```{r}
+```{r, message = FALSE}
 peaklist <- getPeaklist(xsaFA)
 ```
 
@@ -303,29 +302,41 @@ same value are supposed to belong to the same metabolite (based on the
 assumption that co-eluting signal with a similar peak shape and correlation
 across samples derive from the same metabolite).
 
-Let's graphically check the CAMERA output. With the function `plotEICs` we can 
-visualize the raw data, and with the function `plotPsSpectrum` we can plot all 
-peaks of a pseudospectrum:
-```{r}
-plotEICs(      # plot the EICs of all peaks from one pseudospectrum
-  xsaFA, 
-  pspec = 120, # specify which pseudospectrum we want to plot
-  maxlabel = 5 # How many m/z labels to print 
-  )
+Sometimes CAMERA is grouping features of different co-eluting metabolites. It
+might be helpful to evaluate whether peaks from the same group have different
+peak shapes. Parameter `pspec` allows to specify from which group (column
+`"pcgroup"`) the data should be plotted.
 
-#xsaFA@sample = 1
-#plotPsSpectrum(xsaFA, pspec = 5) # This should print a typical m/z plot, with 
-# labelled annotated peaks (but I cannot plot it since I'm getting different 
-# errors. The first one can be solved previously executing "xsaFA@sample = 1" or 
-# adding the argument "sample = c(1:n), with n = number of samples" in the 
-                                        # function "xsAnnotate")
-```
-
-Some times CAMERA is grouping features of different co-eluting metabolites. 
-It can be detected if features from the same group have different peak shapes:
-```{r}
+```{r, message = FALSE}
 plotEICs(xsaFA, maxlabel = 5, pspec = 26)
 ```
+
+At last we extract the *edge list* from the `CAMERA` result object with the
+`getEdgelist` function (defined in
+[xcms-gnps-tools](https://github.com/jorainer/xcms-gnps-tools)).
+
+```{r}
+edgelist <- getEdgelist(xsaFA)
+```
+
+The resulting `data.frame` contains an edge between nodes (i.e. pairwise
+associations between potential adducts/isotopes from the same *pcgroup* defined
+by `CAMERA`) in each row. All edges fulfill the criteria from `CAMERA`
+(i.e. representing signal from co-eluting ions with a similar peak shape), but
+only for few the actual adduct annotation could be determined (see below).
+
+```{r}
+edgelist[1:8, ]
+```
+
+At last we export this edgelist to the file *camera_edgelist.csv* which can be
+used as input in FBMN.
+
+```{r}
+write.csv(edgelist, file = "camera_edgelist.csv", row.names = FALSE,
+          quote = FALSE, na = "")
+```
+
 
 #### Export MS2 features only
 
