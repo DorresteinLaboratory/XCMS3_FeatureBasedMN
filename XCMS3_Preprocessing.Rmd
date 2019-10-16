@@ -288,6 +288,10 @@ file <- system.file('rules/primary_adducts_pos.csv', package = "CAMERA")
 rules <- read.csv(file)
 xsaFA <- findAdducts(xsaFI, polarity = "positive", rules = rules,
                      max_peaks = 100, multiplier = 3, ppm = 10)
+
+xsaFA <- findAdducts(xsaFI, polarity = "positive", 
+                     max_peaks = 100, multiplier = 3, ppm = 10)
+
 ```
 
 Create a CAMERA annotated peak list:
@@ -329,12 +333,43 @@ only for few the actual adduct annotation could be determined (see below).
 edgelist[1:8, ]
 ```
 
-At last we export this edgelist to the file *camera_edgelist.csv* which can be
-used as input in FBMN.
+In addition we extract per-feature annotations from the `CAMERA` result object
+with the `getFeatureAnnotations` function (also defined in
+[xcms-gnps-tools](https://github.com/jorainer/xcms-gnps-tools)). These are
+appended to the feature annotations from the `xcms` result returned by
+`featureDefinitions` and the feature abundance levels (extracted with
+`featureValues`).
+
+```{r message = FALSE}
+quant_table <- cbind(
+    as.data.frame(featureDefinitions(processedData)),
+    getFeatureAnnotations(xsaFA),
+    featureValues(processedData, value = "into"))
+quant_table <- quant_table[, !(colnames(quant_table) %in% "peakidx")]
+
+```
+
+At last we export this edgelist to the file *camera_edgelist.csv* and the
+feature annotation and quantification table to *camera_iin_quant_table*. These
+can be used as input for the Ion Identity Networking in GNPS.
 
 ```{r}
-write.csv(edgelist, file = "camera_edgelist.csv", row.names = FALSE,
+write.csv(edgelist, file = "camera_iin_edgelist.csv", row.names = FALSE,
           quote = FALSE, na = "")
+write.table(quant_table, file = "camera_iin_quant_table.txt",
+            row.names = FALSE, quote = FALSE, sep = "\t", na = "")
+```
+
+In addition we subset both tables to features for which adduct annotations are
+available.
+
+```{r}
+quant_table_sub <- quant_table[!is.na(quant_table[, "best ion"]), ]
+edgelist_sub <- edgelist[!is.na(edgelist$Annotation), ]
+write.csv(edgelist_sub, file = "camera_iin_edgelist_sub.csv", row.names = FALSE,
+          quote = FALSE, na = "")
+write.table(quant_table_sub, file = "camera_iin_quant_table_sub.txt",
+            row.names = FALSE, quote = FALSE, sep = "\t", na = "")
 ```
 
 
