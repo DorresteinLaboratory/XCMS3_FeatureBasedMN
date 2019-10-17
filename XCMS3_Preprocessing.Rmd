@@ -280,31 +280,12 @@ grouped chromatographic peaks. Setting the correct polarity with parameter
 `polarity` (either `"positive"` or `"negative"` is key). For potential adducts,
 `CAMERA` calculates by default all possible combinations from the standard ions
 depending on the ionization mode. Alternatively it is possible to limit to a
-predefined set of adducts with the `rules` parameter. Below we use only primary
-adducts for positive polarity.
+predefined set of adducts with the `rules` parameter.
 
 ```{r, message = FALSE}
-file <- system.file('rules/primary_adducts_pos.csv', package = "CAMERA")
-rules <- read.csv(file)
-xsaFA <- findAdducts(xsaFI, polarity = "positive", rules = rules,
-                     max_peaks = 100, multiplier = 3, ppm = 10)
-
 xsaFA <- findAdducts(xsaFI, polarity = "positive", 
                      max_peaks = 100, multiplier = 3, ppm = 10)
-
 ```
-
-Create a CAMERA annotated peak list:
-
-```{r, message = FALSE}
-peaklist <- getPeaklist(xsaFA)
-```
-
-CAMERA annotations are added in the last three columns of the data frame. The
-column `"pcgroup"` shows the result of the peak aggregation: features with the
-same value are supposed to belong to the same metabolite (based on the
-assumption that co-eluting signal with a similar peak shape and correlation
-across samples derive from the same metabolite).
 
 Sometimes CAMERA is grouping features of different co-eluting metabolites. It
 might be helpful to evaluate whether peaks from the same group have different
@@ -315,7 +296,7 @@ peak shapes. Parameter `pspec` allows to specify from which group (column
 plotEICs(xsaFA, maxlabel = 5, pspec = 26)
 ```
 
-At last we extract the *edge list* from the `CAMERA` result object with the
+Next we extract the *edge list* from the `CAMERA` result object with the
 `getEdgelist` function (defined in
 [xcms-gnps-tools](https://github.com/jorainer/xcms-gnps-tools)).
 
@@ -324,10 +305,11 @@ edgelist <- getEdgelist(xsaFA)
 ```
 
 The resulting `data.frame` contains an edge between nodes (i.e. pairwise
-associations between potential adducts/isotopes from the same *pcgroup* defined
-by `CAMERA`) in each row. All edges fulfill the criteria from `CAMERA`
-(i.e. representing signal from co-eluting ions with a similar peak shape), but
-only for few the actual adduct annotation could be determined (see below).
+associations between potential adducts/isotopes from the same *correlation
+group* defined by `CAMERA`) in each row. All edges fulfill the criteria from
+`CAMERA` (i.e. representing signal from co-eluting ions with a similar peak
+shape), but only for few the actual adduct annotation could be determined (see
+below).
 
 ```{r}
 edgelist[1:8, ]
