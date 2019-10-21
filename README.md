@@ -25,7 +25,7 @@ For utility functions specific to this workflow refer to the Github repository:
 
 This work builds on the efforts of our many colleagues, please cite their work:
 
-Citation: Nothias, L.F. et al [Feature-based Molecular Networking in the GNPS Analysis Environment](https://www.biorxiv.org/content/10.1101/812404v1) bioRxiv 812404 (2019).
+Nothias, L.F. et al [Feature-based Molecular Networking in the GNPS Analysis Environment](https://www.biorxiv.org/content/10.1101/812404v1) bioRxiv 812404 (2019).
 
 [https://github.com/sneumann/xcms](https://github.com/sneumann/xcms)
 
