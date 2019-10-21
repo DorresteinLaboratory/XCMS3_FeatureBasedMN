@@ -1,15 +1,14 @@
 ## Install required packages
 
-Note: This script is optimized for the latest R version (>3.6). Be sure to get the most recent version of R before running.  Note: You don't have to run this chunk if the packages are already installed.
+Note: This script is optimized for the latest R version (>3.6). Be sure to get
+the most recent version of R before running. The code below installs the
+required packages and all needed dependencies. Note: You don't have to run this
+chunk if the packages are already installed.
 
 ```{r, eval = FALSE, message = FALSE}
 if (!requireNamespace("BiocManager"))
     install.packages("BiocManager")
-BiocManager::install("rgl")
-BiocManager::install("xcms")
-BiocManager::install("CAMERA")
-BiocManager::install("BiocParallel")
-BiocManager::install("MSnbase")
+BiocManager::install(c("xcms", "CAMERA"))
 ```
 
 ## Preprocess your data using XCMS3 and export data files for feature-based molecular networking through GNPS
@@ -22,7 +21,7 @@ Note that the settings for `xcms` used in this tutorial were not optimized,
 specifically the alignment based on the default *obiwarp* parameters might
 perform a little to strong retention time adjustment.
 For more information on optimization of the parameters see the [xcms vignette](https://bioconductor.org/packages/release/bioc/vignettes/xcms/inst/doc/xcms.html)
-or the [preprocessing-untargeted-metabolomics](https://github.com/Bioconductor/CSAMA/tree/2019/lab/4-thursday/lab-05-metabolomics) workshop.
+or the [LC-MS data pre-processing with xcms](https://github.com/jorainer/metabolomics2018) workshop.
 
 Load required libraries and utility functions for GNPS export.
 
@@ -66,14 +65,14 @@ pheno <- data.frame(sample_name = sub(basename(mzMLfiles), pattern = ".mzML",rep
 head(pheno)
 ```
 
-Read all raw data, including MS2 level.
+Read all raw data (which includes MS1 and MS2 spectra).
 
 ```{r}
 rawData <- readMSData(mzMLfiles, centroided. = TRUE, mode = "onDisk",
                       pdata = new("NAnnotatedDataFrame", pheno))
 ```
 
-Create a base peak chromatogram (BPC) of your data for visual inspection.
+Create a base peak chromatogram (BPC) for visual inspection.
 
 ```{r, fig.width = 12, fig.height = 6, fig.cap = "Base peak chromatogram."}
 bpis <- chromatogram(rawData, aggregationFun = "max")
@@ -104,7 +103,8 @@ plotChromPeakImage(processedData, binSize = 10)
 
 ### Retention time alignment
 
-Do an *obiwarp*-based alignment using the default settings.
+Do an *obiwarp*-based alignment using the default settings (ideally adapt
+settings to the analyzed data set).
 
 ```{r, message = FALSE, warning = FALSE}
 processedData <- adjustRtime(processedData, param = ObiwarpParam())
@@ -115,6 +115,7 @@ Plot the difference between adjusted and raw retention times.
 ```{r, fig.width = 12, fig.height = 6}
 plotAdjustedRtime(processedData)
 ```
+
 
 ### Peak grouping
 
@@ -141,7 +142,6 @@ medWidth <- median(chromPeaks(processedData)[, "rtmax"] -
 ## fill missing peaks
 processed_Data <- fillChromPeaks(
     processedData, param = FillChromPeaksParam(fixedRt = medWidth))
-
 ```
 
 ### Export data
@@ -193,104 +193,167 @@ head(dataTable)
 ```
 
 ```{r}
-write.table(dataTable, "xcms_all.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+write.table(dataTable, "xcms_all.txt", sep = "\t", quote = FALSE, 
+            row.names = FALSE)
 ```
 
 ### CAMERA annotation of adducts and isotopes
 
-Note: the CAMERA package supports objects of class xcmsSet, which were the outputs of the _old_ version of xcms.  
-So we have to transform the XCMSnExp in xcmsSet trhough the command 'as(object, "xcmsSet", msLevel = 1L)'.  
-Issue: For now, this command does not support objects of class MS2. A solution can be to perform a second preprocessing on the MS1 data before performing the CAMERA annotation. 
+Note: the CAMERA package supports objects of class `xcmsSet`, which were the
+outputs of the *old* version of xcms. The newer `XCMSnExp` object can however be
+converted to an `xcmsSet` object with the `as(object, "xcmsSet")`, which does
+however not support conversion of objects with MS level > 1 data. Thus we use
+the `filterMsLevel` function on the result object to restrict the data in the
+object to MS level 1 prior to the conversion.
 
-```{r}
+```{r, message = FALSE}
 library(CAMERA)
+xset <- as(filterMsLevel(processedData, msLevel = 1L), "xcmsSet")
 ```
 
-xcms preprocessing of filtered MS1 data.
+With the conversion we lost also the sample group assignment which we have to
+manually add.
 
-```{r}
-rawDataMS1 <- filterMsLevel(rawData, msLevel = 1L)
-xs1 <- findChromPeaks(rawDataMS1, param = cwp)
-ret1 <- adjustRtime(xs1, 
-                    param = ObiwarpParam()
-                    )
-gret1 <- groupChromPeaks(ret1, param = pdp)
-fill1 <- fillChromPeaks(gret1, param = FillChromPeaksParam(fixedRt = medWidth))
+```{r, message = FALSE}
+sampclass(xset) <- s_groups
 ```
 
-Transform the XCMSnExp in xcmsSet object to support CAMERA annotation.
+Create and `xsAnnotate` object named `xsa` extracting the peak table from the 
+`xcmsSet` object named `xset`. Parameter `polarity` can be either `"positive"`
+or `"negative"`, depending on the polarity in which the data was acquired.
 
-```{r}
-xset <- as(fill1, "xcmsSet")
+```{r, message = FALSE}
+xsa <- xsAnnotate(xset, polarity = "positive")
 ```
 
-Create a xsAnnotate object.
+The following worflow can be divided in 2 big steps: (1) feature grouping into 
+*pseudospectras* and (2) annotate the ion species.
+
+The first step has the aim to group the chromatographic peaks from the same
+metabolite (but for potentially different adducts/ions of it). We thus first
+group peaks of the `xsAnnotate` object (`xsa`) with a similar retention time
+(i.e. co-eluting peaks). Parameter `perfwhm` allows to define the percentage of
+the width of the FWHM (full width at half maximum). For data sets with a higher
+variation in retention times this values should be increased.
 
 ```{r}
-xsa <- xsAnnotate(xset)
+xsaF <- groupFWHM(xsa, sigma = 6, perfwhm = 1) 
 ```
 
-Grouping of co-eluted peaks based on rt.
+In this example, this step has generated 283 pseudospectra.
 
-```{r}
-xsaF <- groupFWHM(
-                  xsa,
-                  sigma = 6,
-                  perfwhm = 1
-                  )
-```                  
+Then, we verify/clean-up the peak grouping by correlating the peak shape of
+features clustered in the same pseudospectra group (in order to separate
+co-eluting metabolites). Peaks with correlations lower than `cor_eic_th` are
+separated into different groups. Parameters `calcCiS`, `calcCaS` and `calcIso`
+allow to specify whether correlations should be performed within the same sample
+(the default), across samples or whether isotope detection information should be
+included for graph clustering. We use the default values here, but this should
+be adapted to the respective experimental setup (e.g. setting `calcSaS = TRUE`
+if it can be assumed that the same adducts are generated across all samples in
+the data set).
 
-Check grouping.
-
-```{r}
-xsaC <- groupCorr(
-                  xsaF,
-                  cor_eic_th = 0.6,
-                  pval = 0.05,
-                  graphMethod = "hcs",
-                  calcCiS = TRUE,
-                  calcIso = FALSE,
-                  calcCaS=FALSE
-                  )
-```                  
-
-CAMERA annotation of isotopes and adducts
-
-```{r}
-xsaFI <- findIsotopes(
-                      xsaC,
-                      maxcharge = 2,
-                      maxiso = 3,
-                      minfrac = 0.5
-                      )
-xsaFA <- findAdducts(
-                     xsaFI,
-                     polarity="positive", # or "negative"
-                     max_peaks = 100,
-                     multiplier = 3
-                     )
+```{r, message = FALSE}
+xsaC <- groupCorr(xsaF, cor_eic_th = 0.6, pval = 0.05, graphMethod = "hcs",
+                  calcCiS = TRUE, calcCaS = TRUE, calcIso = FALSE)
 ```
 
-Create a CAMERA annotated peak list.
+This step has seperated our 283 pseudospectra into 2132.
 
-```{r}
-peaklist <- getPeaklist(xsaFA)
+Now we are going to deal with the second big step of CAMERA workflow: annotation
+of isotopes and adducts within pseudospectra-groups. The `findIsotopes`
+annotates isotopes according to the relation between features'
+C12/C13. Parameter `intval` allows to specify which feature value should be uses
+(`"into"` for the maximum peak intensity, `"into"` for the integrated peak
+intensity and `"intb"` for the baseline corrected integrated peak intensity,
+which might not be available for all peak detection methods). Parameters
+`maxcharge` and `maxiso` allow to specify the maximal number of isotope charge
+and isotope peaks, respectively.
+
+```{r, message = FALSE}
+xsaFI <- findIsotopes(xsaC, maxcharge = 2, maxiso = 3, minfrac = 0.5,
+                      ppm = 10, intval = "maxo")
 ```
 
-Bind tha CAMERA nnotated peak list with the previously obtained peak aera quantification table.
+Next adducts are identified and annotated based on the m/z differences between
+grouped chromatographic peaks. Setting the correct polarity with parameter
+`polarity` (either `"positive"` or `"negative"` is key). For potential adducts,
+`CAMERA` calculates by default all possible combinations from the standard ions
+depending on the ionization mode. Alternatively it is possible to limit to a
+predefined set of adducts with the `rules` parameter.
 
-```{r}
-annotated_dataTable <- cbind(
-                                 dataTable,
-                                 peaklist[,c((ncol(peaklist)-2):ncol(peaklist))]
-                                 )
+```{r, message = FALSE}
+xsaFA <- findAdducts(xsaFI, polarity = "positive", 
+                     max_peaks = 100, multiplier = 3, ppm = 10)
 ```
 
-Export peak area quantification table and CAMERA annotation of adducts and isotopes.  
+Sometimes CAMERA is grouping features of different co-eluting metabolites. It
+might be helpful to evaluate whether peaks from the same group have different
+peak shapes. Parameter `pspec` allows to specify from which group (column
+`"pcgroup"`) the data should be plotted.
+
+```{r, message = FALSE}
+plotEICs(xsaFA, maxlabel = 5, pspec = 26)
+```
+
+Next we extract the *edge list* from the `CAMERA` result object with the
+`getEdgelist` function (defined in
+[xcms-gnps-tools](https://github.com/jorainer/xcms-gnps-tools)).
 
 ```{r}
-write.table(annotated_dataTable, "xcms_camera_all.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+edgelist <- getEdgelist(xsaFA)
 ```
+
+The resulting `data.frame` contains an edge between nodes (i.e. pairwise
+associations between potential adducts/isotopes from the same *correlation
+group* defined by `CAMERA`) in each row. All edges fulfill the criteria from
+`CAMERA` (i.e. representing signal from co-eluting ions with a similar peak
+shape), but only for few the actual adduct annotation could be determined (see
+below).
+
+```{r}
+edgelist[1:8, ]
+```
+
+In addition we extract per-feature annotations from the `CAMERA` result object
+with the `getFeatureAnnotations` function (also defined in
+[xcms-gnps-tools](https://github.com/jorainer/xcms-gnps-tools)). These are
+appended to the feature annotations from the `xcms` result returned by
+`featureDefinitions` and the feature abundance levels (extracted with
+`featureValues`).
+
+```{r message = FALSE}
+quant_table <- cbind(
+    as.data.frame(featureDefinitions(processedData)),
+    getFeatureAnnotations(xsaFA),
+    featureValues(processedData, value = "into"))
+quant_table <- quant_table[, !(colnames(quant_table) %in% "peakidx")]
+
+```
+
+At last we export this edgelist to the file *camera_edgelist.csv* and the
+feature annotation and quantification table to *camera_iin_quant_table*. These
+can be used as input for the Ion Identity Networking in GNPS.
+
+```{r}
+write.csv(edgelist, file = "camera_iin_edgelist.csv", row.names = FALSE,
+          quote = FALSE, na = "")
+write.table(quant_table, file = "camera_iin_quant_table.txt",
+            row.names = FALSE, quote = FALSE, sep = "\t", na = "")
+```
+
+In addition we subset both tables to features for which adduct annotations are
+available.
+
+```{r}
+quant_table_sub <- quant_table[!is.na(quant_table[, "best ion"]), ]
+edgelist_sub <- edgelist[!is.na(edgelist$Annotation), ]
+write.csv(edgelist_sub, file = "camera_iin_edgelist_sub.csv", row.names = FALSE,
+          quote = FALSE, na = "")
+write.table(quant_table_sub, file = "camera_iin_quant_table_sub.txt",
+            row.names = FALSE, quote = FALSE, sep = "\t", na = "")
+```
+
 
 #### Export MS2 features only
 
