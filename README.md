@@ -1,8 +1,8 @@
 ## Introduction
 
-The Feature-Based Molecular Networking (FBMN) workflow is a computational method that bridges popular mass spectrometry data processing tools for LC-MS/MS and molecular networking analysis on [GNPS](http://gnps.ucsd.edu). The tools supported are: MZmine2, OpenMS, MS-DIAL, MetaboScape, and XCMS.
+The Feature-Based Molecular Networking (FBMN) workflow is a computational method that bridges popular mass spectrometry data processing tools for LC-MS/MS and molecular networking analysis on [GNPS](http://gnps.ucsd.edu). The tools supported are: MZmine2, OpenMS, MS-DIAL, MetaboScape, XCMS, and the mzTab-M format.
 
-The main documentation for Feature-Based Molecular Networking with XCMS can be accessed [here](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking-with-xcms3/).
+The main documentation for Feature-Based Molecular Networking with XCMS can be accessed [here](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking-with-xcms3/). See our preprint Nothias, L.F. et al [bioRxiv 812404 (2019)](https://www.biorxiv.org/content/10.1101/812404v1).
 
 This repository contains example scripts in Python and R showing how `XCMS` version >= 3 (XCMS3) can be used for the
 FBMN workflow in GNPS using a subset of samples of the American Gut Project ([MSV000082678](https://massive.ucsd.edu/ProteoSAFe/dataset.jsp?task=de2d18fd91804785bce8c225cc94a444)) and soil bacteria ([MSV000079204](https://massive.ucsd.edu/ProteoSAFe/dataset.jsp?task=d74ca92d9dec4e2883f28506c670e3ca)).
@@ -24,6 +24,8 @@ For utility functions specific to this workflow refer to the Github repository:
 ### Citations and development
 
 This work builds on the efforts of our many colleagues, please cite their work:
+
+Citation: Nothias, L.F. et al [Feature-based Molecular Networking in the GNPS Analysis Environment](https://www.biorxiv.org/content/10.1101/812404v1) bioRxiv 812404 (2019).
 
 [https://github.com/sneumann/xcms](https://github.com/sneumann/xcms)
 
