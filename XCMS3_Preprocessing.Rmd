@@ -328,29 +328,20 @@ quant_table <- cbind(
     getFeatureAnnotations(xsaFA),
     featureValues(processedData, value = "into"))
 quant_table <- quant_table[, !(colnames(quant_table) %in% "peakidx")]
-
 ```
 
-At last we export this edgelist to the file *camera_edgelist.csv* and the
+At last we export this edgelist to the file *camera_iin_edgelist.csv* and the
 feature annotation and quantification table to *camera_iin_quant_table*. These
-can be used as input for the Ion Identity Networking in GNPS.
-
-```{r}
-write.csv(edgelist, file = "camera_iin_edgelist.csv", row.names = FALSE,
-          quote = FALSE, na = "")
-write.table(quant_table, file = "camera_iin_quant_table.txt",
-            row.names = FALSE, quote = FALSE, sep = "\t", na = "")
-```
-
-In addition we subset both tables to features for which adduct annotations are
-available.
+can be used as input for the Ion Identity Networking (IIN) in GNPS. Note that we
+restrict the output to features and edges for which adduct annotations were
+defined by CAMERA.
 
 ```{r}
 quant_table_sub <- quant_table[!is.na(quant_table[, "best ion"]), ]
-edgelist_sub <- edgelist[!is.na(edgelist$Annotation), ]
-write.csv(edgelist_sub, file = "camera_iin_edgelist_sub.csv", row.names = FALSE,
+edgelist_sub <- edgelist[edgelist$Annotation != "", ]
+write.csv(edgelist_sub, file = "camera_iin_edgelist.csv", row.names = FALSE,
           quote = FALSE, na = "")
-write.table(quant_table_sub, file = "camera_iin_quant_table_sub.txt",
+write.table(quant_table_sub, file = "camera_iin_quant_table.txt",
             row.names = FALSE, quote = FALSE, sep = "\t", na = "")
 ```
 
